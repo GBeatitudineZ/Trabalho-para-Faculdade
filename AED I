@@ -3,9 +3,9 @@
 #include <math.h>
 
 typedef struct Termo {
-    int coeficiente;     // Ex: 2 em 2x³
-    int expoente;        // Ex: 3 em 2x³  
-    struct Termo* prox;  // Ponteiro para próximo termo
+    int coeficiente;     
+    int expoente;       
+    struct Termo* prox;  
 } Termo;
 
 // --- FUNÇÕES DE APOIO ---
@@ -23,7 +23,6 @@ void inserirOuSomar(Termo** poli, int c, int e) {
         atual = atual->prox;
     }
     
-    // Se não existir, insere no início
     Termo* novo = (Termo*) malloc(sizeof(Termo));
     if (novo == NULL) return;
     novo->coeficiente = c;
@@ -33,7 +32,7 @@ void inserirOuSomar(Termo** poli, int c, int e) {
 }
 
 void imprimir(Termo* poli) {
-    // Percorre lista imprimindo termos não-nulos
+
     if (poli == NULL) {
         printf("0");
     } else {
