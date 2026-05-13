@@ -1,0 +1,177 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+
+typedef struct Termo {
+    int coeficiente;     // Ex: 2 em 2x³
+    int expoente;        // Ex: 3 em 2x³  
+    struct Termo* prox;  // Ponteiro para próximo termo
+} Termo;
+
+// --- FUNÇÕES DE APOIO ---
+
+void inserirOuSomar(Termo** poli, int c, int e) {
+    if (c == 0) return;
+    
+    Termo* atual = *poli;
+
+    while (atual != NULL) {
+        if (atual->expoente == e) {
+            atual->coeficiente += c;    
+            return;
+        }
+        atual = atual->prox;
+    }
+    
+    // Se não existir, insere no início
+    Termo* novo = (Termo*) malloc(sizeof(Termo));
+    if (novo == NULL) return;
+    novo->coeficiente = c;
+    novo->expoente = e;
+    novo->prox = *poli;
+    *poli = novo;
+}
+
+void imprimir(Termo* poli) {
+    // Percorre lista imprimindo termos não-nulos
+    if (poli == NULL) {
+        printf("0");
+    } else {
+        Termo* atual = poli;
+        int primeiro = 1;
+        while (atual != NULL) {
+            if (atual->coeficiente != 0) {
+                if (!primeiro && atual->coeficiente > 0) printf(" + ");
+                printf("%dx^%d", atual->coeficiente, atual->expoente);
+                primeiro = 0;
+            }
+            atual = atual->prox;
+        }
+    }
+    printf("\n");
+}
+
+void limparRec(Termo* atual) {
+    if (atual == NULL) return;
+    limparRec(atual->prox);     
+    free(atual);                
+}
+
+double calcularX(Termo* poli, double x) {
+    double resultado = 0;
+    Termo* atual = poli;
+    while (atual != NULL) {
+        resultado += atual->coeficiente * pow(x, (double)atual->expoente);
+        atual = atual->prox;
+    }
+    return resultado;
+}
+
+// --- OPERAÇÕES ---
+
+Termo* somarPolinomios(Termo* p1, Termo* p2) {
+    Termo* resultado = NULL;
+    Termo* aux = p1;
+    while (aux != NULL) {
+        inserirOuSomar(&resultado, aux->coeficiente, aux->expoente);
+        aux = aux->prox;
+    }
+    aux = p2;
+    while (aux != NULL) {
+        inserirOuSomar(&resultado, aux->coeficiente, aux->expoente);
+        aux = aux->prox;
+    }
+    return resultado;
+}
+
+Termo* multiplicarPolinomios(Termo* p1, Termo* p2) {
+    Termo* resultado = NULL;
+    for (Termo* i = p1; i != NULL; i = i->prox) {
+        for (Termo* j = p2; j != NULL; j = j->prox) {
+            // Regra: Multiplica coeficientes, soma expoentes
+            int novoCoef = i->coeficiente * j->coeficiente;
+            int novoExp = i->expoente + j->expoente;
+            inserirOuSomar(&resultado, novoCoef, novoExp);
+        }
+    }
+    return resultado;
+}
+
+// --- FLUXO RECURSIVO ---
+
+void montarPolinomioRecursivo(Termo** poli) {
+    int c, e;
+    printf("\n   -> Coeficiente (0 para parar): ");
+    scanf("%d", &c);
+    if (c == 0) return;
+
+    printf("   -> Expoente: ");
+    scanf("%d", &e);
+    inserirOuSomar(poli, c, e);
+    
+    montarPolinomioRecursivo(poli);
+}
+
+void gerarMenu(Termo** p1, Termo** p2) {
+    int opcao;
+    double valorX;
+    Termo* temp = NULL;
+
+    printf("\n---------- MENU RECURSIVO ----------");
+    printf("\n1. Definir Polinomio 1");
+    printf("\n2. Definir Polinomio 2");
+    printf("\n3. Somar (P1 + P2)");
+    printf("\n4. Multiplicar (P1 * P2)");
+    printf("\n5. Calcular X (no P1)");
+    printf("\n6. Limpar Tudo (Reset)");
+    printf("\n0. Sair");
+    printf("\nEscolha: ");
+    scanf("%d", &opcao);
+
+    switch (opcao) {
+        case 1:
+            montarPolinomioRecursivo(p1);
+            break;
+        case 2:
+            montarPolinomioRecursivo(p2);
+            break;
+        case 3:
+            printf("\n[P1]: "); imprimir(*p1);
+            printf("[P2]: "); imprimir(*p2);
+            temp = somarPolinomios(*p1, *p2);
+            printf("[SOMA]: "); imprimir(temp);
+            limparRec(temp);
+            break;
+        case 4:
+            printf("\n[P1]: "); imprimir(*p1);
+            printf("[P2]: "); imprimir(*p2);
+            temp = multiplicarPolinomios(*p1, *p2);
+            printf("[MULTIPLICACAO]: "); imprimir(temp);
+            limparRec(temp);
+            break;
+        case 5:
+            printf("\nDigite X: ");
+            scanf("%lf", &valorX);
+            printf("Resultado f(%.2f) = %.2f\n", valorX, calcularX(*p1, valorX));
+            break;
+        case 6:
+            limparRec(*p1); *p1 = NULL;
+            limparRec(*p2); *p2 = NULL;
+            printf("\nResetado!");
+            break;
+        case 0:
+            limparRec(*p1);
+            limparRec(*p2);
+            printf("\nSaindo...\n");
+            exit(0);
+        default:
+            printf("\nOpcao invalida!");
+    }
+    gerarMenu(p1, p2);
+}
+
+int main() {
+    Termo *p1 = NULL, *p2 = NULL;   // Listas vazias
+    gerarMenu(&p1, &p2);            // Nunca retorna (recursiva)
+    return 0;
+}
