@@ -1,0 +1,482 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <locale.h>
+
+#define MAX_NOME 100
+#define MAX_TELEFONE 20
+#define MAX_DATA 15
+#define MAX_EMAIL 100
+#define NOME_ARQUIVO "contatos.txt"
+
+typedef struct Contato {
+    char nome[MAX_NOME];
+    char telefone[MAX_TELEFONE];
+    char data_nascimento[MAX_DATA];
+    char email[MAX_EMAIL];
+    struct Contato* proximo;    
+    struct Contato* anterior;   
+} Contato;
+
+typedef struct {
+    Contato* primeiro;
+    Contato* ultimo;
+    Contato* atual;           
+    int total_contatos;
+} ListaTelefonica;
+
+// Protótipos
+void inicializarLista(ListaTelefonica* lista);
+Contato* criarContato(char* nome, char* telefone, char* data, char* email);
+void inserirContato(ListaTelefonica* lista, char* nome, char* telefone, char* data, char* email);
+void exibirLista(ListaTelefonica* lista);
+void buscarPorNome(ListaTelefonica* lista, char* nome_busca);
+int removerContato(ListaTelefonica* lista, char* nome_busca);
+void navegarProximo(ListaTelefonica* lista);
+void navegarAnterior(ListaTelefonica* lista);
+void exibirContatoAtual(ListaTelefonica* lista);
+void salvarEmArquivo(ListaTelefonica* lista);
+void carregarDoArquivo(ListaTelefonica* lista);
+void ordenarPorNome(ListaTelefonica* lista);
+void liberarLista(ListaTelefonica* lista);
+void para_minusculas(const char* origem, char* destino);
+void limparBuffer();
+
+void limparBuffer() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF);
+}
+
+void para_minusculas(const char* origem, char* destino) {
+    int i;
+    for (i = 0; origem[i]; i++) {
+        destino[i] = tolower((unsigned char)origem[i]);
+    }
+    destino[i] = '\0';
+}
+
+void inicializarLista(ListaTelefonica* lista) {
+    lista->primeiro = NULL;
+    lista->ultimo = NULL;
+    lista->atual = NULL;
+    lista->total_contatos = 0;
+    printf("Lista Telefônica inicializada!\n\n");
+}
+
+Contato* criarContato(char* nome, char* telefone, char* data, char* email) {
+    Contato* novo = (Contato*)malloc(sizeof(Contato));
+    if (novo == NULL) {
+        printf("Erro: Falha na alocação de memória!\n");
+        return NULL;
+    }
+    strcpy(novo->nome, nome);
+    strcpy(novo->telefone, telefone);
+    strcpy(novo->data_nascimento, data);
+    strcpy(novo->email, email);
+    novo->proximo = NULL;
+    novo->anterior = NULL;
+    return novo;
+}
+
+void inserirContato(ListaTelefonica* lista, char* nome, char* telefone, char* data, char* email) {
+    if (strlen(nome) == 0) {
+        printf("Erro: Nome não pode ser vazio!\n");
+        return;
+    }
+    
+    Contato* novo = criarContato(nome, telefone, data, email);
+    if (novo == NULL) return;
+    
+    if (lista->primeiro == NULL) {
+        lista->primeiro = novo;
+        lista->ultimo = novo;
+        lista->atual = novo;
+    } else {
+        novo->anterior = lista->ultimo;
+        lista->ultimo->proximo = novo;
+        lista->ultimo = novo;
+    }
+    lista->total_contatos++;
+    printf("Contato inserido com sucesso!\n");
+}
+
+void exibirLista(ListaTelefonica* lista) {
+    if (lista->primeiro == NULL) {
+        printf("\n=========================================\n");
+        printf("  A lista telefônica está VAZIA!\n");
+        printf("=========================================\n\n");
+        return;
+    }
+    
+    Contato* atual = lista->primeiro;
+    int contador = 1;
+    
+    printf("\n=========================================\n");
+    printf("     LISTA TELEFÔNICA (%d contato(s))\n", lista->total_contatos);
+    printf("=========================================\n");
+    
+    while (atual != NULL) {
+        printf("\n--- Contato %d ---\n", contador);
+        printf("Nome: %s\n", atual->nome);
+        printf("Telefone: %s\n", atual->telefone);
+        printf("Nascimento: %s\n", atual->data_nascimento);
+        printf("Email: %s\n", atual->email);
+        printf("-------------------\n");
+        atual = atual->proximo;
+        contador++;
+    }
+    printf("\n=========================================\n\n");
+}
+
+void buscarPorNome(ListaTelefonica* lista, char* nome_busca) {
+    if (lista->primeiro == NULL) {
+        printf("A lista está vazia.\n");
+        return;
+    }
+    
+    Contato* atual = lista->primeiro;
+    int encontrados = 0;
+    char nome_atual_mini[MAX_NOME];
+    char nome_busca_mini[MAX_NOME];
+    
+    para_minusculas(nome_busca, nome_busca_mini);
+    
+    printf("\n=========================================\n");
+    printf("   BUSCANDO POR: \"%s\"\n", nome_busca);
+    printf("=========================================\n");
+    
+    while (atual != NULL) {
+        para_minusculas(atual->nome, nome_atual_mini);
+        
+        if (strstr(nome_atual_mini, nome_busca_mini) != NULL) {
+            printf("\n--- CONTATO ENCONTRADO ---\n");
+            printf("Nome: %s\n", atual->nome);
+            printf("Telefone: %s\n", atual->telefone);
+            printf("Nascimento: %s\n", atual->data_nascimento);
+            printf("Email: %s\n", atual->email);
+            printf("---------------------------\n");
+            encontrados++;
+        }
+        atual = atual->proximo;
+    }
+    
+    if (encontrados == 0) {
+        printf("\nNenhum contato encontrado com \"%s\".\n", nome_busca);
+    } else {
+        printf("\nTotal encontrado(s): %d\n", encontrados);
+    }
+    printf("=========================================\n\n");
+}
+
+int removerContato(ListaTelefonica* lista, char* nome_busca) {
+    if (lista->primeiro == NULL) {
+        printf("A lista está vazia.\n");
+        return 0;
+    }
+    
+    Contato* atual = lista->primeiro;
+    char nome_atual_mini[MAX_NOME];
+    char nome_busca_mini[MAX_NOME];
+    para_minusculas(nome_busca, nome_busca_mini);
+    
+    while (atual != NULL) {
+        para_minusculas(atual->nome, nome_atual_mini);
+        if (strstr(nome_atual_mini, nome_busca_mini) != NULL) {
+            
+            // Segurança: Se o contato removido for o "atual", movemos o ponteiro antes do free
+            if (atual == lista->atual) {
+                if (atual->proximo != NULL) {
+                    lista->atual = atual->proximo;
+                } else if (atual->anterior != NULL) {
+                    lista->atual = atual->anterior;
+                } else {
+                    lista->atual = NULL;
+                }
+            }
+
+            // Caso 1: Único elemento na lista
+            if (lista->primeiro == lista->ultimo) {
+                lista->primeiro = NULL;
+                lista->ultimo = NULL;
+            }
+            // Caso 2: Removendo o primeiro elemento
+            else if (atual == lista->primeiro) {
+                lista->primeiro = atual->proximo;
+                lista->primeiro->anterior = NULL;
+            }
+            // Caso 3: Removendo o último elemento
+            else if (atual == lista->ultimo) {
+                lista->ultimo = atual->anterior;
+                lista->ultimo->proximo = NULL;
+            }
+            // Caso 4: Removendo do meio
+            else {
+                atual->anterior->proximo = atual->proximo;
+                atual->proximo->anterior = atual->anterior;
+            }
+            
+            printf("Contato \"%s\" removido com sucesso!\n", atual->nome);
+            free(atual);
+            lista->total_contatos--;
+            return 1;
+        }
+        atual = atual->proximo;
+    }
+    
+    printf("Contato \"%s\" não encontrado.\n", nome_busca);
+    return 0;
+}
+
+void navegarProximo(ListaTelefonica* lista) {
+    if (lista->atual == NULL) {
+        printf("Nenhum contato selecionado ou lista vazia.\n");
+        return;
+    }
+    if (lista->atual->proximo == NULL) {
+        printf("Você está no ÚLTIMO contato.\n");
+        return;
+    }
+    lista->atual = lista->atual->proximo;
+    printf("Navegado para o próximo contato.\n");
+    exibirContatoAtual(lista);
+}
+
+void navegarAnterior(ListaTelefonica* lista) {
+    if (lista->atual == NULL) {
+        printf("Nenhum contato selecionado ou lista vazia.\n");
+        return;
+    }
+    if (lista->atual->anterior == NULL) {
+        printf("Você está no PRIMEIRO contato.\n");
+        return;
+    }
+    lista->atual = lista->atual->anterior;
+    printf("Navegado para o contato anterior.\n");
+    exibirContatoAtual(lista);
+}
+
+void exibirContatoAtual(ListaTelefonica* lista) {
+    if (lista->atual == NULL) {
+        printf("Nenhum contato selecionado ou lista vazia.\n");
+        return;
+    }
+    printf("\n=========================================\n");
+    printf("          CONTATO ATUAL\n");
+    printf("=========================================\n");
+    printf("Nome: %s\n", lista->atual->nome);
+    printf("Telefone: %s\n", lista->atual->telefone);
+    printf("Nascimento: %s\n", lista->atual->data_nascimento);
+    printf("Email: %s\n", lista->atual->email);
+    printf("=========================================\n\n");
+}
+
+void salvarEmArquivo(ListaTelefonica* lista) {
+    FILE* arquivo = fopen(NOME_ARQUIVO, "w");
+    if (arquivo == NULL) {
+        printf("Erro ao criar arquivo!\n");
+        return;
+    }
+    
+    Contato* atual = lista->primeiro;
+    while (atual != NULL) {
+        fprintf(arquivo, "%s\n", atual->nome);
+        fprintf(arquivo, "%s\n", atual->telefone);
+        fprintf(arquivo, "%s\n", atual->data_nascimento);
+        fprintf(arquivo, "%s\n", atual->email);
+        fprintf(arquivo, "---\n");
+        atual = atual->proximo;
+    }
+    
+    fclose(arquivo);
+    printf("Lista salva em arquivo: %s\n", NOME_ARQUIVO);
+}
+
+void carregarDoArquivo(ListaTelefonica* lista) {
+    FILE* arquivo = fopen(NOME_ARQUIVO, "r");
+    if (arquivo == NULL) {
+        printf("Arquivo não encontrado. Iniciando com lista vazia.\n");
+        return;
+    }
+    
+    char nome[MAX_NOME], telefone[MAX_TELEFONE];
+    char data[MAX_DATA], email[MAX_EMAIL];
+    char sep[10];
+    
+    // Validação rígida de leitura para evitar corrupção de dados
+    while (fgets(nome, MAX_NOME, arquivo) != NULL) {
+        nome[strcspn(nome, "\n")] = '\0';
+        if (strlen(nome) == 0) continue;
+        
+        if (fgets(telefone, MAX_TELEFONE, arquivo) == NULL) break;
+        telefone[strcspn(telefone, "\n")] = '\0';
+        
+        if (fgets(data, MAX_DATA, arquivo) == NULL) break;
+        data[strcspn(data, "\n")] = '\0';
+        
+        if (fgets(email, MAX_EMAIL, arquivo) == NULL) break;
+        email[strcspn(email, "\n")] = '\0';
+        
+        if (fgets(sep, 10, arquivo) == NULL) break;
+        
+        inserirContato(lista, nome, telefone, data, email);
+    }
+    
+    fclose(arquivo);
+    printf("Lista carregada do arquivo com sucesso!\n");
+}
+
+void ordenarPorNome(ListaTelefonica* lista) {
+    if (lista->primeiro == NULL || lista->primeiro->proximo == NULL) {
+        printf("Lista vazia ou com um elemento. Nada a ordenar.\n");
+        return;
+    }
+    
+    Contato* j;
+    int houve_troca;
+    
+    char t_nome[MAX_NOME];
+    char t_tel[MAX_TELEFONE];
+    char t_data[MAX_DATA];
+    char t_email[MAX_EMAIL];
+    
+    char nome_j[MAX_NOME], nome_prox[MAX_NOME];
+    
+    do {
+        houve_troca = 0;
+        j = lista->primeiro;
+        
+        while (j->proximo != NULL) {
+            para_minusculas(j->nome, nome_j);
+            para_minusculas(j->proximo->nome, nome_prox);
+            
+            if (strcmp(nome_j, nome_prox) > 0) {
+                // Troca Nome
+                strcpy(t_nome, j->nome);
+                strcpy(j->nome, j->proximo->nome);
+                strcpy(j->proximo->nome, t_nome);
+                
+                // Troca Telefone
+                strcpy(t_tel, j->telefone);
+                strcpy(j->telefone, j->proximo->telefone);
+                strcpy(j->proximo->telefone, t_tel);
+                
+                // Troca Data
+                strcpy(t_data, j->data_nascimento);
+                strcpy(j->data_nascimento, j->proximo->data_nascimento);
+                strcpy(j->proximo->data_nascimento, t_data);
+                
+                // Troca Email
+                strcpy(t_email, j->email);
+                strcpy(j->email, j->proximo->email);
+                strcpy(j->proximo->email, t_email);
+                
+                houve_troca = 1;
+            }
+            j = j->proximo;
+        }
+    } while (houve_troca);
+    
+    lista->atual = lista->primeiro; 
+    printf("Lista ordenada por nome com sucesso!\n");
+}
+
+void liberarLista(ListaTelefonica* lista) {
+    Contato* atual = lista->primeiro;
+    Contato* prox;
+    
+    while (atual != NULL) {
+        prox = atual->proximo;
+        free(atual);
+        atual = prox;
+    }
+    
+    lista->primeiro = NULL;
+    lista->ultimo = NULL;
+    lista->atual = NULL;
+    lista->total_contatos = 0;
+    printf("Lista liberada da memória.\n");
+}
+
+void mostrarMenu() {
+    printf("========== MENU LISTA TELEFÔNICA ==========\n");
+    printf("1.  Exibir Lista Completa\n");
+    printf("2.  Inserir Novo Contato\n");
+    printf("3.  Buscar Contato por Nome\n");
+    printf("4.  Remover Contato\n");
+    printf("5.  Navegar para o Próximo\n");
+    printf("6.  Navegar para o Anterior\n");
+    printf("7.  Ver Contato Atual\n");
+    printf("8.  Ordenar Lista por Nome\n");
+    printf("9.  Salvar em Arquivo\n");
+    printf("10. Carregar do Arquivo\n");
+    printf("0.  SAIR\n");
+    printf("=========================================\n");
+    printf("Escolha uma opção: ");
+}
+
+int main() {
+    setlocale(LC_ALL, "pt_BR.UTF-8"); 
+    ListaTelefonica lista;
+    int opcao;
+    char nome[MAX_NOME];
+    char telefone[MAX_TELEFONE];
+    char data[MAX_DATA];
+    char email[MAX_EMAIL];
+    
+    inicializarLista(&lista);
+    carregarDoArquivo(&lista);
+    
+    do {
+        mostrarMenu();
+        if (scanf("%d", &opcao) != 1) {
+            printf("Entrada inválida!\n");
+            limparBuffer();
+            opcao = -1;
+            continue;
+        }
+        limparBuffer();
+        
+        switch (opcao) {
+            case 1: exibirLista(&lista); break;
+            case 2:
+                printf("\n--- INSERIR NOVO CONTATO ---\n");
+                printf("Nome: "); fgets(nome, MAX_NOME, stdin); nome[strcspn(nome, "\n")] = '\0';
+                printf("Telefone: "); fgets(telefone, MAX_TELEFONE, stdin); telefone[strcspn(telefone, "\n")] = '\0';
+                printf("Data de Nascimento: "); fgets(data, MAX_DATA, stdin); data[strcspn(data, "\n")] = '\0';
+                printf("Email: "); fgets(email, MAX_EMAIL, stdin); email[strcspn(email, "\n")] = '\0';
+                inserirContato(&lista, nome, telefone, data, email);
+                exibirLista(&lista);
+                break;
+            case 3:
+                printf("\nDigite o nome para buscar: ");
+                fgets(nome, MAX_NOME, stdin); nome[strcspn(nome, "\n")] = '\0';
+                buscarPorNome(&lista, nome);
+                break;
+            case 4:
+                printf("\nDigite o nome do contato a remover: ");
+                fgets(nome, MAX_NOME, stdin); nome[strcspn(nome, "\n")] = '\0';
+                removerContato(&lista, nome);
+                exibirLista(&lista);
+                break;
+            case 5: navegarProximo(&lista); break;
+            case 6: navegarAnterior(&lista); break;
+            case 7: exibirContatoAtual(&lista); break;
+            case 8: ordenarPorNome(&lista); break;
+            case 9: salvarEmArquivo(&lista); break;
+            case 10:
+                liberarLista(&lista);
+                carregarDoArquivo(&lista);
+                break;
+            case 0:
+                printf("\nEncerrando o programa...\nSalvando dados...\n");
+                salvarEmArquivo(&lista);
+                liberarLista(&lista);
+                printf("Programa encerrado com sucesso!\n");
+                break;
+            default: printf("Opção inválida! Tente novamente.\n");
+        }
+    } while (opcao != 0);
+    
+    return 0;
+}
